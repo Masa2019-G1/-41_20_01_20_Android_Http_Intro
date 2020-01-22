@@ -1,9 +1,11 @@
 package com.telran.a20_01_20_cw;
 
 
+import android.content.DialogInterface;
 import android.os.AsyncTask;
 import android.os.Bundle;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 
 import android.util.Log;
@@ -12,13 +14,12 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import com.google.gson.Gson;
+import com.telran.a20_01_20_cw.dto.UserDto;
 
 import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
 
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -35,6 +36,7 @@ public class LoginFragment extends Fragment implements View.OnClickListener {
     EditText inputEmail, inputPassword;
     Button regBtn, loginBtn;
     ViewGroup progressFrame;
+
     public LoginFragment() {
     }
 
@@ -55,14 +57,35 @@ public class LoginFragment extends Fragment implements View.OnClickListener {
         return view;
     }
 
-    private void showProgress(boolean show){
+    private void showProgress(boolean show) {
         progressFrame.setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
 
+    private void showError(String msg) {
+        AlertDialog dialog = new AlertDialog.Builder(requireContext())
+                .setTitle("Error")
+                .setIcon(R.mipmap.ic_launcher)
+                .setMessage(msg)
+                .setCancelable(false)
+                .setPositiveButton("Ok", (dialog1, which) -> {
+                    Toast.makeText(requireContext(), "Ok Clicked", Toast.LENGTH_SHORT).show();
+                })
+                .create();
+        dialog.show();
+    }
+
+
+    private void showNextView() {
+        getFragmentManager()
+                .beginTransaction()
+                .replace(R.id.root,new ListFragment())
+                .commit();
+    }
+
     @Override
     public void onClick(View v) {
-        switch (v.getId()){
+        switch (v.getId()) {
             case R.id.loginBtn:
                 new LoginTask().execute();
                 break;
@@ -72,8 +95,10 @@ public class LoginFragment extends Fragment implements View.OnClickListener {
         }
     }
 
-    class RegTask extends AsyncTask<Void,Void,String>{
+    class RegTask extends AsyncTask<Void, Void, String> {
         String email, password;
+        boolean isSuccess = true;
+
         @Override
         protected void onPreExecute() {
             showProgress(true);
@@ -84,30 +109,17 @@ public class LoginFragment extends Fragment implements View.OnClickListener {
         @Override
         protected String doInBackground(Void... voids) {
             String result = "Registration ok";
-            MediaType JSON = MediaType.get("application/json; charset=utf-8");
-            OkHttpClient client = new OkHttpClient();
-
-//            String json = "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}";
-            Gson gson = new Gson();
-            User user = new User();
-            user.email = email;
-            user.password = password;
-            String json = gson.toJson(user);
-            Log.d("MY_TAG", "doInBackground: " + json);
-            RequestBody body = RequestBody.create(JSON,json);
-
-            Request request = new Request.Builder()
-                    .url("https://contacts-telran.herokuapp.com/api/registration")
-                    .post(body)
-                    .build();
-
             try {
-                Response response = client.newCall(request).execute();
-                String res = response.body().string();
-                Log.d("MY_TAG", "doInBackground: " + res + " code: " + response.code());
+                String token = HttpProvider
+                        .getInstance()
+                        .registration(email, password);
+                StoreProvider.getInstance().saveToken(token);
             } catch (IOException e) {
-                e.printStackTrace();
-                result = "Connection error";
+                isSuccess = false;
+                result = "Connection error! Check your internet!";
+            } catch (RuntimeException e){
+                isSuccess = false;
+                result = e.getMessage();
             }
             return result;
         }
@@ -115,31 +127,50 @@ public class LoginFragment extends Fragment implements View.OnClickListener {
         @Override
         protected void onPostExecute(String s) {
             showProgress(false);
-            Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show();
+            if(!isSuccess){
+                showError(s);
+            }else {
+                showNextView();
+            }
         }
     }
 
-    class LoginTask extends AsyncTask<Void,Void,String>{
-
+    class LoginTask extends AsyncTask<Void, Void, String> {
+        String email, password;
+        boolean isSuccess = true;
         @Override
         protected void onPreExecute() {
             showProgress(true);
+            email = inputEmail.getText().toString();
+            password = inputPassword.getText().toString();
         }
 
         @Override
         protected String doInBackground(Void... voids) {
+            String result = "Login OK!";
             try {
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+                String token = HttpProvider
+                        .getInstance()
+                        .login(email,password);
+                StoreProvider.getInstance().saveToken(token);
+            } catch (IOException e) {
+                isSuccess = false;
+                result = "Connection error!Check your internet";
+            }catch (RuntimeException e){
+                isSuccess = false;
+                result = e.getMessage();
             }
-            return "Login ok!";
+            return result;
         }
 
         @Override
         protected void onPostExecute(String s) {
             showProgress(false);
-            Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show();
+            if(!isSuccess){
+                showError(s);
+            }else {
+                showNextView();
+            }
         }
     }
 }
