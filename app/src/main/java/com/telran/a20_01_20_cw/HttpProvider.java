@@ -6,6 +6,7 @@ import com.google.gson.Gson;
 import com.telran.a20_01_20_cw.dto.AuthDto;
 import com.telran.a20_01_20_cw.dto.ContactDto;
 import com.telran.a20_01_20_cw.dto.ContactListDto;
+import com.telran.a20_01_20_cw.dto.DeleteStatusDto;
 import com.telran.a20_01_20_cw.dto.ErrorDto;
 import com.telran.a20_01_20_cw.dto.UserDto;
 
@@ -109,6 +110,29 @@ public class HttpProvider {
         }else{
             String json = response.body().string();
             Log.d("MY_TAG", "getAllContacts: " + json);
+            throw new RuntimeException("Server error!Call to support");
+        }
+    }
+
+    public String deleteById(long id, String token) throws IOException {
+        Request request = new Request.Builder()
+                .url(BASE_URL +"/api/contact/" + id)
+                .delete()
+                .addHeader("Authorization",token)
+                .build();
+
+        Response response = client.newCall(request).execute();
+        if(response.isSuccessful()){
+            String json = response.body().string();
+            DeleteStatusDto dto = gson.fromJson(json,DeleteStatusDto.class);
+            return dto.getStatus();
+        }else if(response.code() == 400 || response.code() == 401 || response.code() == 404){
+            String json = response.body().string();
+            ErrorDto error = gson.fromJson(json,ErrorDto.class);
+            throw new RuntimeException(error.getMessage());
+        }else{
+            String json = response.body().string();
+            Log.d("MY_TAG", "deleteById: " + json);
             throw new RuntimeException("Server error!Call to support");
         }
     }

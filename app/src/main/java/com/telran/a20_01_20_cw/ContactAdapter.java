@@ -4,6 +4,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.Button;
 import android.widget.TextView;
 
 import com.telran.a20_01_20_cw.dto.ContactDto;
@@ -12,9 +13,14 @@ import java.util.List;
 
 public class ContactAdapter extends BaseAdapter {
     List<ContactDto> list;
+    OnItemClickListener listener;
 
     public ContactAdapter(List<ContactDto> list) {
         this.list = list;
+    }
+
+    public void setListener(OnItemClickListener listener) {
+        this.listener = listener;
     }
 
     @Override
@@ -32,6 +38,11 @@ public class ContactAdapter extends BaseAdapter {
         return list.get(position).getId();
     }
 
+    public void delete(int position){
+        list.remove(position);
+        notifyDataSetChanged();
+    }
+
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         if(convertView == null){
@@ -44,6 +55,17 @@ public class ContactAdapter extends BaseAdapter {
         TextView phoneTxt = convertView.findViewById(R.id.phoneTxt);
         nameTxt.setText(contact.getName() + " " + contact.getLastName());
         phoneTxt.setText(contact.getPhone());
+
+        Button btn = convertView.findViewById(R.id.deleteBtn);
+        btn.setOnClickListener(v->{
+            if(listener != null){
+                listener.onDelete(contact.getId(), position);
+            }
+        });
         return convertView;
+    }
+
+    interface OnItemClickListener{
+        void onDelete(long id, int position);
     }
 }

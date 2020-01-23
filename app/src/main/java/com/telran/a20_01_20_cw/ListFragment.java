@@ -17,7 +17,9 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ListView;
+import android.widget.Toast;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.telran.a20_01_20_cw.dto.ContactDto;
@@ -34,6 +36,7 @@ public class ListFragment extends Fragment {
     AlertDialog progressDialog;
     ListView contactList;
     FloatingActionButton addBtn;
+    ContactAdapter adapter;
 
     public ListFragment() {
         // Required empty public constructor
@@ -57,6 +60,9 @@ public class ListFragment extends Fragment {
         View view  = inflater.inflate(R.layout.fragment_list, container, false);
         contactList = view.findViewById(R.id.contactList);
         addBtn = view.findViewById(R.id.addBtn);
+        contactList.setOnItemClickListener((parent, view1, position, id) -> {
+            Toast.makeText(requireContext(), "Clicked: " + position, Toast.LENGTH_SHORT).show();
+        });
         return view;
     }
 
@@ -116,8 +122,52 @@ public class ListFragment extends Fragment {
         @Override
         protected void onPostExecute(List<ContactDto> list) {
             showProgress(false);
-            ContactAdapter adapter = new ContactAdapter(list);
+            adapter = new ContactAdapter(list);
+            adapter.setListener((id,position)->{
+                new DeleteTask(id,position).execute();
+            });
             contactList.setAdapter(adapter);
+        }
+    }
+
+    class DeleteTask extends AsyncTask<Void,Void,String>{
+        long id;
+        int position;
+        boolean isSuccess = true;
+
+        public DeleteTask(long id, int position) {
+            this.id = id;
+            this.position = position;
+        }
+
+        @Override
+        protected void onPreExecute() {
+            showProgress(true);
+        }
+
+        @Override
+        protected String doInBackground(Void... voids) {
+            String result;
+            String token = StoreProvider.getInstance().getToken();
+            try {
+                result = HttpProvider.getInstance().deleteById(id,token);
+            } catch (IOException e) {
+                result = "Connection error!Check your internet";
+                isSuccess = false;
+            }catch (RuntimeException e){
+                result = e.getMessage();
+                isSuccess = false;
+            }
+            return result;
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            showProgress(false);
+            if(isSuccess){
+                adapter.delete(position);
+            }
+            Toast.makeText(requireContext(), s, Toast.LENGTH_SHORT).show();
         }
     }
 }
